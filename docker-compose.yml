@@ -1,77 +1,57 @@
-version: '3'
+version: "3"
+
 services:
 
-  spring-app:
-    container_name: review
-    build:
-      context: ./
-      dockerfile: Dockerfile
-    ports:
-      - "8087:8087"
-#    depends_on:
-#      - mysql
-#    environment:
-#      - spring.datasource.url=jdbc:mysql://mysql:3306/reviews?useUnicode=true&characterEncoding=utf8&useSSL=false&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true # burayı sil kontrol et önce
-#      - spring.datasource.username=root
-#      - spring.datasource.password=root
-#      - spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-#      - spring.jpa.hibernate.ddl-auto=update
-#      - spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
-#      - spring.jpa.properties.hibernate.show_sql=true
-
-  filebeat:
-    build:
-      context: elk/filebeat
-      dockerfile: Dockerfile
-    networks:
-      - elk
-    volumes:
-      - /var/lib/docker:/var/lib/docker:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - $HOME/app:/var/app
-
-
-  logstash:
-    build:
-      context: elk/logstash
-      dockerfile: Dockerfile
-    ports:
-      - "5044:5044"
-
-    networks:
-      - elk
-    volumes:
-      - $HOME/app:/var/app
-    depends_on:
-      - elasticsearch
-
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.3.3
+    container_name: elasticsearch_springboot
     environment:
-      - http.host=0.0.0.0
-      - transport.host=127.0.0.1
-      - discovery.type=single-node
-      - validate_after_inactivity=0
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "discovery.type=single-node"
       - xpack.security.enabled=false
-
-    networks:
-      - elk
     ports:
       - "9200:9200"
-      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - elastic
 
   kibana:
-    image: kibana:6.8.7
-    container_name: kibana
-    environment:
-      SERVER_NAME: kibana.example.org
-      ELASTICSEARCH_URL: http://elasticsearch:9200
+    image: docker.elastic.co/kibana/kibana:8.3.3
+    container_name: kibana_springboot
     ports:
       - "5601:5601"
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    depends_on:
+      - elasticsearch
     networks:
-      - elk
+      - elastic
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.3.3
+    container_name: logstash_springboot
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    ports:
+      - "5044:5044"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - elastic
     depends_on:
       - elasticsearch
 
 networks:
-  elk:
+  elastic:
+    driver: bridge
+
+volumes:
+  elasticsearch_data:
+    driver: local
