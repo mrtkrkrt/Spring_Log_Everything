@@ -1,0 +1,77 @@
+version: '3'
+services:
+
+  spring-app:
+    container_name: review
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "8087:8087"
+#    depends_on:
+#      - mysql
+#    environment:
+#      - spring.datasource.url=jdbc:mysql://mysql:3306/reviews?useUnicode=true&characterEncoding=utf8&useSSL=false&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true # burayı sil kontrol et önce
+#      - spring.datasource.username=root
+#      - spring.datasource.password=root
+#      - spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+#      - spring.jpa.hibernate.ddl-auto=update
+#      - spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+#      - spring.jpa.properties.hibernate.show_sql=true
+
+  filebeat:
+    build:
+      context: elk/filebeat
+      dockerfile: Dockerfile
+    networks:
+      - elk
+    volumes:
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $HOME/app:/var/app
+
+
+  logstash:
+    build:
+      context: elk/logstash
+      dockerfile: Dockerfile
+    ports:
+      - "5044:5044"
+
+    networks:
+      - elk
+    volumes:
+      - $HOME/app:/var/app
+    depends_on:
+      - elasticsearch
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.3
+    environment:
+      - http.host=0.0.0.0
+      - transport.host=127.0.0.1
+      - discovery.type=single-node
+      - validate_after_inactivity=0
+      - xpack.security.enabled=false
+
+    networks:
+      - elk
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+
+  kibana:
+    image: kibana:6.8.7
+    container_name: kibana
+    environment:
+      SERVER_NAME: kibana.example.org
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+networks:
+  elk:

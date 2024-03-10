@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class UserController {
 
+    // TODO kibana bağlanıp ordan loglar görüntülenecek
+    // TODO log tracing sistemi geliştirilecek
+    // TODO error case leri için ayrı log basılıp error lar handle edilecek
+
     @PostMapping("/getUserById")
     public ResponseEntity<User> getUser(@RequestBody(required = false) GetUserRequest request,
                                         @RequestHeader(value = "Authorization", required = false) String token) {
