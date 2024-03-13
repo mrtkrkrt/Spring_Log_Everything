@@ -36,7 +36,8 @@ public class SpringLoggingFilter extends OncePerRequestFilter {
 
     private String requestLogFormatString(HttpServletRequest request) throws IOException {
         RequestWrapper requestWrapper = new RequestWrapper(request);
-        return String.format("Request Method: %s, Request Uri: %s, Request TraceId: %s, Request Body: %s, Request Headers: %s",
+        return String.format("## %s ## Request Method: %s, Request Uri: %s, Request TraceId: %s, Request Body: %s, Request Headers: %s",
+                requestWrapper.getServerName(),
                 requestWrapper.getMethod(),
                 requestWrapper.getRequestURI(),
                 requestWrapper.getHeader(X_TRACE_ID),
