@@ -6,9 +6,8 @@ import java.io.Serializable;
 
 @Getter
 @Setter
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class GetUserRequest implements Serializable {
-    private Long id;
+    private String id;
 }

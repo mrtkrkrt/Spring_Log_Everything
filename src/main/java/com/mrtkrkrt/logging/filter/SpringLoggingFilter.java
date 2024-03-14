@@ -29,7 +29,7 @@ public class SpringLoggingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         traceIdGeneratorService.generateTraceId(request);
         setResponseHeader(response);
-        log.info(requestLogFormatString(request));
+//        log.info(requestLogFormatString(request));
         log.info(responseLogFormatString(response));
         filterChain.doFilter(request, response);
     }
