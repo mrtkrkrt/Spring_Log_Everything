@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -30,23 +29,22 @@ public class SpringLoggingFilter extends OncePerRequestFilter {
 
     @SneakyThrows
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        RequestWrapper requestWrapper = new RequestWrapper(request);
         traceIdGeneratorService.generateTraceId(request);
         setResponseHeader(response);
-        RequestWrapper requestWrapper = setRequestHeader(request);
-        log.info(requestLogFormatString(request));
+        log.info(requestLogFormatString(requestWrapper));
         log.info(responseLogFormatString(response));
         filterChain.doFilter(requestWrapper, response);
     }
 
-    private String requestLogFormatString(HttpServletRequest request) throws IOException {
-        RequestWrapper requestWrapper = new RequestWrapper(request);
+    private String requestLogFormatString(RequestWrapper request) throws IOException {
         return String.format("## %s ## Request Method: %s, Request Uri: %s, Request TraceId: %s, Request Headers: %s, Request Body: %s",
-                requestWrapper.getServerName(),
-                requestWrapper.getMethod(),
-                requestWrapper.getRequestURI(),
-                requestWrapper.getAttribute(X_TRACE_ID),
-                requestWrapper.getAllHeaders(),
-                MDC.get("REQUEST_BODY"));
+                request.getServerName(),
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getAttribute(X_TRACE_ID),
+                request.getAllHeaders(),
+                RequestWrapper.body);
     }
 
     private String responseLogFormatString(HttpServletResponse response) throws Exception {
@@ -65,12 +63,6 @@ public class SpringLoggingFilter extends OncePerRequestFilter {
 
     private void setResponseHeader(HttpServletResponse response) {
         response.addHeader(X_TRACE_ID, MDC.get(X_TRACE_ID));
-    }
-
-    private RequestWrapper setRequestHeader(HttpServletRequest request) {
-        RequestWrapper requestWrapper = new RequestWrapper(request);
-        requestWrapper.getAllHeaders().put(X_TRACE_ID, MDC.get(X_TRACE_ID));
-        return requestWrapper;
     }
 
     private static String getResponseData(HttpServletResponse response) throws Exception {
