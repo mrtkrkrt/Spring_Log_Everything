@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -17,6 +18,7 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 import org.springframework.web.util.WebUtils;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import static com.mrtkrkrt.logging.constants.LoggingConstants.X_TRACE_ID;
 
@@ -30,11 +32,12 @@ public class SpringLoggingFilter extends OncePerRequestFilter {
     @SneakyThrows
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         RequestWrapper requestWrapper = new RequestWrapper(request);
+        ResponseWrapper responseWrapper = new ResponseWrapper(response);
         traceIdGeneratorService.generateTraceId(request);
-        setResponseHeader(response);
+        setResponseHeader(responseWrapper);
         log.info(requestLogFormatString(requestWrapper));
-        log.info(responseLogFormatString(response));
-        filterChain.doFilter(requestWrapper, response);
+        filterChain.doFilter(requestWrapper, responseWrapper);
+        log.info(responseLogFormatString(responseWrapper));
     }
 
     private String requestLogFormatString(RequestWrapper request) throws IOException {
@@ -47,35 +50,15 @@ public class SpringLoggingFilter extends OncePerRequestFilter {
                 RequestWrapper.body);
     }
 
-    private String responseLogFormatString(HttpServletResponse response) throws Exception {
-        ResponseWrapper responseWrapper = new ResponseWrapper(response);
-        return String.format("Response Status: %s, Response Headers: %s, Response TraceId: %s, Response Data: %s",
+    private String responseLogFormatString(ResponseWrapper responseWrapper) {
+        return String.format("Response Status: %s, Response Headers: %s, Response TraceId: %s, Response Body, %s",
                 responseWrapper.getStatus(),
                 responseWrapper.getAllHeaders(),
                 responseWrapper.getHeader(X_TRACE_ID),
-                extractResponseData(response));
-    }
-
-    public String extractResponseData(HttpServletResponse response) throws Exception {
-        HttpServletResponse responseToCache = new ContentCachingResponseWrapper((HttpServletResponse) response);
-        return getResponseData(responseToCache);
+                IOUtils.toString(responseWrapper.getCopyBody(), responseWrapper.getCharacterEncoding()));
     }
 
     private void setResponseHeader(HttpServletResponse response) {
         response.addHeader(X_TRACE_ID, MDC.get(X_TRACE_ID));
-    }
-
-    private static String getResponseData(HttpServletResponse response) throws Exception {
-        ContentCachingResponseWrapper wrapper = WebUtils.getNativeResponse(response,
-                ContentCachingResponseWrapper.class);
-        if (wrapper != null) {
-            byte[] buf = wrapper.getContentAsByteArray();
-            if (buf.length > 0) {
-                String payload = new String(buf, 0, buf.length, wrapper.getCharacterEncoding());
-                log.debug("Response Payload :" + payload);
-                return payload;
-            }
-        }
-        return "";
     }
 }
